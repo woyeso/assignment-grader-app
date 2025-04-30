@@ -1,0 +1,8 @@
+streamlit==1.15.0
+pdfplumber
+python-docx
+weasyprint
+transformers
+torch
+peft
+requests
