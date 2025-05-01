@@ -14,9 +14,16 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Set environment variables for caching
+# Set environment variables for caching and Fontconfig
 os.environ["HF_HOME"] = "/tmp/huggingface_cache"
-os.makedirs(os.environ["HF_HOME"], exist_ok=True)
+os.environ["FONTCONFIG_PATH"] = "/tmp/fontconfig"
+os.environ["XDG_CACHE_HOME"] = "/tmp/xdg_cache"
+os.makedirs("/tmp/huggingface_cache", exist_ok=True)
+os.makedirs("/tmp/fontconfig", exist_ok=True)
+os.makedirs("/tmp/xdg_cache", exist_ok=True)
+
+# Inform users about initialization
+st.info("Initializing the app... This may take a few minutes as the model weights are downloaded.")
 
 # Function to download and reassemble model weights
 @st.cache_resource
@@ -24,14 +31,26 @@ def download_model_weights():
     model_dir = "/tmp/model"
     os.makedirs(model_dir, exist_ok=True)
     
-    # List of files to download
-    release_url = "https://github.com/woyeso/assignment-grader-app/releases/download/v1.0.0"
+    # Use unsloth/Llama-3.2-1B-Instruct to reduce memory usage (comment out to revert to 3B model)
+    release_url = "https://github.com/woyeso/assignment-grader-app/releases/download/v1.1.0"
     files_to_download = [
         "config.json",
         "generation_config.json",
         "model.safetensors.index.json",
     ]
-    
+    safetensors_shards = [
+        ("model-00001-of-00002.safetensors", ["partaa", "partab"]),  # Adjust based on actual shards for 1B model
+        ("model-00002-of-00002.safetensors", ["partaa", "partab"]),
+    ]
+
+    # For unsloth/Llama-3.2-3B-Instruct (uncomment if using 3B model with upgraded hardware)
+    # release_url = "https://github.com/woyeso/assignment-grader-app/releases/download/v1.0.0"
+    # safetensors_shards = [
+    #     ("model-00001-of-00003.safetensors", ["partaa", "partab", "partac", "partad", "partae"]),
+    #     ("model-00002-of-00003.safetensors", ["partaa", "partab", "partac", "partad", "partae"]),
+    #     ("model-00003-of-00003.safetensors", ["partaa", "partab", "partac"]),
+    # ]
+
     # Download small files
     for file_name in files_to_download:
         file_path = os.path.join(model_dir, file_name)
@@ -45,16 +64,9 @@ def download_model_weights():
                         f.write(chunk)
 
     # Download and reassemble sharded .safetensors files
-    safetensors_shards = [
-        ("model-00001-of-00003.safetensors", ["partaa", "partab", "partac", "partad", "partae"]),
-        ("model-00002-of-00003.safetensors", ["partaa", "partab", "partac", "partad", "partae"]),
-        ("model-00003-of-00003.safetensors", ["partaa", "partab", "partac"]),
-    ]
-
     for shard_name, parts in safetensors_shards:
         shard_path = os.path.join(model_dir, shard_name)
         if not os.path.exists(shard_path):
-            # Download each part
             part_paths = []
             for part in parts:
                 part_name = f"{shard_name}.{part}"
@@ -83,23 +95,24 @@ def load_model():
     adapter_model_name = "woyeso/fine_tuned_llama_3_2_assignment_grader"
     hf_token = os.getenv("HF_TOKEN")
     
-    # Download model weights
+    # Use unsloth/Llama-3.2-1B-Instruct to reduce memory usage (comment out to revert to 3B model)
+    base_model_name = "unsloth/Llama-3.2-1B-Instruct"
+    # For unsloth/Llama-3.2-3B-Instruct (uncomment if using 3B model with upgraded hardware)
+    # base_model_name = "unsloth/Llama-3.2-3B-Instruct"
+    
     model_dir = download_model_weights()
     
-    # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
         adapter_model_name,
         token=hf_token if hf_token else None
     )
     
-    # Load base model from local weights
     base_model = AutoModelForCausalLM.from_pretrained(
         model_dir,
         torch_dtype=torch.float16,
         device_map="auto"
     )
     
-    # Load PEFT adapters
     model = PeftModel.from_pretrained(base_model, adapter_model_name)
     return model, tokenizer
 
@@ -131,7 +144,7 @@ def evaluate_submission(submission_text, rubric, project_type, subcomponent):
 st.title("Assignment Grader App")
 
 # File upload
-uploaded_file = st.file_uploader("Upload PDF/DOCX", type=["pdf", "docx"])
+uploaded_file = st.file_uploader("Upload PDF/DOCX", type QUIET["pdf", "docx"])
 project_type = st.selectbox("Project Type", ["Group (P1)", "Individual (P2)"])
 school_name = st.text_input("School Name (Optional)")
 group_number = st.text_input("Group Number (Optional)")
