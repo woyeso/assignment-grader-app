@@ -18,31 +18,72 @@ logger = logging.getLogger(__name__)
 os.environ["HF_HOME"] = "/tmp/huggingface_cache"
 os.makedirs(os.environ["HF_HOME"], exist_ok=True)
 
-# Function to download model weights from GitHub release
+# Function to download and reassemble model weights
 @st.cache_resource
 def download_model_weights():
     model_dir = "/tmp/model"
     os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, "model.safetensors")
     
-    if not os.path.exists(model_path):
-        url = "https://github.com/woyeso/assignment-grader-app/releases/download/v1.0.0/model.safetensors"
-        logger.info(f"Downloading model weights from {url}")
-        response = requests.get(url, stream=True)
-        with open(model_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
+    # List of files to download
+    release_url = "https://github.com/woyeso/assignment-grader-app/releases/download/v1.0.0"
+    files_to_download = [
+        "config.json",
+        "generation_config.json",
+        "model.safetensors.index.json",
+    ]
+    
+    # Download small files
+    for file_name in files_to_download:
+        file_path = os.path.join(model_dir, file_name)
+        if not os.path.exists(file_path):
+            url = f"{release_url}/{file_name}"
+            logger.info(f"Downloading {file_name} from {url}")
+            response = requests.get(url, stream=True)
+            with open(file_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+
+    # Download and reassemble sharded .safetensors files
+    safetensors_shards = [
+        ("model-00001-of-00003.safetensors", ["partaa", "partab", "partac", "partad", "partae"]),
+        ("model-00002-of-00003.safetensors", ["partaa", "partab", "partac", "partad", "partae"]),
+        ("model-00003-of-00003.safetensors", ["partaa", "partab", "partac"]),
+    ]
+
+    for shard_name, parts in safetensors_shards:
+        shard_path = os.path.join(model_dir, shard_name)
+        if not os.path.exists(shard_path):
+            # Download each part
+            part_paths = []
+            for part in parts:
+                part_name = f"{shard_name}.{part}"
+                part_path = os.path.join(model_dir, part_name)
+                url = f"{release_url}/{part_name}"
+                logger.info(f"Downloading {part_name} from {url}")
+                response = requests.get(url, stream=True)
+                with open(part_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                part_paths.append(part_path)
+
+            # Reassemble the shard
+            with open(shard_path, "wb") as f:
+                for part_path in part_paths:
+                    with open(part_path, "rb") as pf:
+                        f.write(pf.read())
+                    os.remove(part_path)  # Clean up part file
+
     return model_dir
 
 # Load model and tokenizer
 @st.cache_resource
 def load_model():
-    base_model_name = "unsloth/Llama-3.2-3B-Instruct"
     adapter_model_name = "woyeso/fine_tuned_llama_3_2_assignment_grader"
     hf_token = os.getenv("HF_TOKEN")
     
-    # Download base model weights
+    # Download model weights
     model_dir = download_model_weights()
     
     # Load tokenizer
