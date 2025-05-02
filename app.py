@@ -5,7 +5,7 @@ import json
 import streamlit as st
 import pdfplumber
 from docx import Document
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
 
 # Set page config as the first Streamlit command
@@ -30,41 +30,81 @@ def load_rubrics(project_type):
     except json.JSONDecodeError:
         raise ValueError(f"Error decoding JSON from {rubric_file}")
 
-# Load model and tokenizer
+# Load model and tokenizer with quantization
 @st.cache_resource
 def load_model():
-    model_name = "distilgpt2"
     hf_token = os.getenv("HF_TOKEN")
+    if not hf_token:
+        st.error("Hugging Face token (HF_TOKEN) not found in environment variables. Please set it to access the model.")
+        return None, None
 
+    # Try loading the fine-tuned LLaMA 3.2 model
+    model_name = "woyeso/fine_tuned_llama_3_2_assignment_grader"
     try:
+        # 4-bit quantization config
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True
+        )
+
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
-            token=hf_token if hf_token else None,
+            token=hf_token,
             use_fast=True
         )
-    except Exception as e:
-        logger.error(f"Failed to load fast tokenizer: {e}. Falling back to slow tokenizer.")
-        tokenizer = AutoTokenizer.from_pretrained(
+
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+            logger.debug(f"Set pad_token to eos_token: {tokenizer.pad_token}")
+
+        model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            token=hf_token if hf_token else None,
-            use_fast=False
+            quantization_config=quantization_config,
+            torch_dtype=torch.float16,
+            device_map="cpu",  # Force CPU usage due to limited resources
+            token=hf_token
         )
+        model.config.pad_token_id = tokenizer.pad_token_id
+        logger.info("Successfully loaded fine_tuned_llama_3_2_assignment_grader")
+        return model, tokenizer
 
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-        logger.debug(f"Set pad_token to eos_token: {tokenizer.pad_token}")
+    except Exception as e:
+        logger.error(f"Failed to load fine_tuned_llama_3_2_assignment_grader: {e}")
+        st.warning("Failed to load the fine-tuned LLaMA model due to resource constraints. Falling back to distilgpt2.")
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=torch.float16,
-        device_map="auto",
-        token=hf_token if hf_token else None
-    )
-    model.config.pad_token_id = tokenizer.pad_token_id
+        # Fallback to distilgpt2
+        try:
+            model_name = "distilgpt2"
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_name,
+                token=hf_token if hf_token else None,
+                use_fast=True
+            )
 
-    return model, tokenizer
+            if tokenizer.pad_token is None:
+                tokenizer.pad_token = tokenizer.eos_token
+                logger.debug(f"Set pad_token to eos_token: {tokenizer.pad_token}")
+
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                torch_dtype=torch.float16,
+                device_map="cpu",
+                token=hf_token if hf_token else None
+            )
+            model.config.pad_token_id = tokenizer.pad_token_id
+            logger.info("Successfully loaded distilgpt2 as fallback")
+            return model, tokenizer
+
+        except Exception as e:
+            logger.error(f"Failed to load distilgpt2: {e}")
+            st.error("Failed to load any model. Please check your environment and try again.")
+            return None, None
 
 model, tokenizer = load_model()
+if model is None or tokenizer is None:
+    st.stop()
 
 # Subcomponent mappings
 P1_SUBCOMPONENTS = {
@@ -307,21 +347,26 @@ def evaluate_submission(subcomponent, project_type, rubric, submission, school_n
         f"Provide specific suggestions for improvement to help the student improve their submission.\n\n"
         f"Give me an overall mark out of 10, and don't be too strict. Ensure you provide the score in the format: <Overall Mark: X/10>. Do not omit the score and follow format of X/10."
     )
-    inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
-    inputs = {k: v.to(model.device) for k, v in inputs.items()}
-    
-    with torch.no_grad():
-        outputs = model.generate(
-            input_ids=inputs["input_ids"],
-            attention_mask=inputs["attention_mask"],
-            max_new_tokens=256,
-            temperature=0.7,
-            top_p=0.9,
-            do_sample=True,
-            pad_token_id=tokenizer.pad_token_id
-        )
-    feedback = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return feedback
+    try:
+        inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+        inputs = {k: v.to("cpu") for k, v in inputs.items()}  # Ensure CPU usage
+
+        with torch.no_grad():
+            outputs = model.generate(
+                input_ids=inputs["input_ids"],
+                attention_mask=inputs["attention_mask"],
+                max_new_tokens=150,  # Reduced to minimize memory usage
+                temperature=0.7,
+                top_p=0.9,
+                do_sample=True,
+                pad_token_id=tokenizer.pad_token_id
+            )
+        feedback = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        return feedback
+
+    except Exception as e:
+        logger.error(f"Error during model generation: {e}")
+        return f"Error evaluating submission: {str(e)}"
 
 # Sidebar (mimicking side panel)
 with st.sidebar:
@@ -343,8 +388,9 @@ with st.sidebar:
     st.write("- Download PDF (Disabled)")
     st.write("### About")
     st.write("""
-    This app is designed to grade service course project submissions by leveraging AI-powered evaluation. The model was trained on Service Learning Project (ISE2S02) submissions. 
+    This app is designed to grade service course project submissions by leveraging AI-powered evaluation. The model was fine-tuned on Service Learning Project (ISE2S02) submissions. 
     Hence, it is tailored to grade submissions related to this course and provides detailed feedback on strengths, weaknesses, and areas for improvement to help students enhance their work.
+    Built with Llama.
     """)
 
 # Main content
@@ -418,6 +464,10 @@ if st.button("Submit"):
                         submission,
                         school_name if school_name else "Not provided"
                     )
+
+                    if "Error evaluating submission" in evaluation:
+                        st.error(f"Failed to evaluate subcomponent {subcomponent}: {evaluation}")
+                        st.stop()
 
                     if school_name:
                         evaluation = evaluation.replace("XYZ students", f"{school_name} students")
