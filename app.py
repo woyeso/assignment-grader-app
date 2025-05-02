@@ -30,7 +30,7 @@ def load_rubrics(project_type):
 # Load model and tokenizer
 @st.cache(allow_output_mutation=True)
 def load_model():
-    model_name = "distilgpt2"  # Switch to a lightweight, stable model
+    model_name = "distilgpt2"  # Lightweight model
     hf_token = os.getenv("HF_TOKEN")
 
     try:
@@ -49,12 +49,21 @@ def load_model():
             use_fast=False
         )
 
+    # Set padding token for distilgpt2 (which doesn't have one by default)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+        logger.debug(f"Set pad_token to eos_token: {tokenizer.pad_token}")
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.float16,
         device_map="auto",
         token=hf_token if hf_token else None
     )
+
+    # Ensure the model knows about the padding token
+    model.config.pad_token_id = tokenizer.pad_token_id
+
     return model, tokenizer
 
 model, tokenizer = load_model()
@@ -310,7 +319,8 @@ def evaluate_submission(subcomponent, project_type, rubric, submission, school_n
             max_new_tokens=256,
             temperature=0.7,
             top_p=0.9,
-            do_sample=True
+            do_sample=True,
+            pad_token_id=tokenizer.pad_token_id  # Explicitly set pad_token_id for generation
         )
     feedback = tokenizer.decode(outputs[0], skip_special_tokens=True)
     return feedback
