@@ -7,6 +7,10 @@ import pdfplumber
 from docx import Document
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Set page config as the first Streamlit command
 st.set_page_config(layout="wide")
