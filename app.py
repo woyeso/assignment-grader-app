@@ -6,7 +6,6 @@ import streamlit as st
 import pdfplumber
 from docx import Document
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
 import torch
 
 # Set up logging
@@ -31,23 +30,20 @@ def load_rubrics(project_type):
 # Load model and tokenizer
 @st.cache_resource
 def load_model():
-    adapter_model_name = "woyeso/fine_tuned_llama_3_2_assignment_grader"
-    base_model_name = "unsloth/Llama-3.2-3B-Instruct"  # Adjust if the base model differs
+    model_name = "unsloth/Llama-3.2-1B-Instruct"  # Use smaller 1B model
     hf_token = os.getenv("HF_TOKEN")
 
     tokenizer = AutoTokenizer.from_pretrained(
-        adapter_model_name,
+        model_name,
         token=hf_token if hf_token else None
     )
 
-    base_model = AutoModelForCausalLM.from_pretrained(
-        base_model_name,
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
         torch_dtype=torch.float16,
         device_map="auto",
         token=hf_token if hf_token else None
     )
-
-    model = PeftModel.from_pretrained(base_model, adapter_model_name, token=hf_token if hf_token else None)
     return model, tokenizer
 
 model, tokenizer = load_model()
