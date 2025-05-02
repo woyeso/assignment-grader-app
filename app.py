@@ -28,15 +28,26 @@ def load_rubrics(project_type):
         raise ValueError(f"Error decoding JSON from {rubric_file}")
 
 # Load model and tokenizer
-@st.cache(allow_output_mutation=True)  # Replaced cache_resource with cache
+@st.cache(allow_output_mutation=True)
 def load_model():
     model_name = "unsloth/Llama-3.2-1B-Instruct"  # Use smaller 1B model
     hf_token = os.getenv("HF_TOKEN")
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_name,
-        token=hf_token if hf_token else None
-    )
+    try:
+        # Try loading with fast tokenizer first
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            token=hf_token if hf_token else None,
+            use_fast=True  # Explicitly enable fast tokenizer
+        )
+    except Exception as e:
+        logger.error(f"Failed to load fast tokenizer: {e}. Falling back to slow tokenizer.")
+        # Fall back to slow tokenizer
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            token=hf_token if hf_token else None,
+            use_fast=False  # Force slow tokenizer
+        )
 
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
