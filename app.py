@@ -8,6 +8,9 @@ from docx import Document
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
+# Set page config as the first Streamlit command
+st.set_page_config(layout="wide")
+
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -28,7 +31,7 @@ def load_rubrics(project_type):
         raise ValueError(f"Error decoding JSON from {rubric_file}")
 
 # Load model and tokenizer
-@st.cache(allow_output_mutation=True)
+@st.cache_resource
 def load_model():
     model_name = "distilgpt2"
     hf_token = os.getenv("HF_TOKEN")
@@ -320,14 +323,12 @@ def evaluate_submission(subcomponent, project_type, rubric, submission, school_n
     feedback = tokenizer.decode(outputs[0], skip_special_tokens=True)
     return feedback
 
-# Streamlit app
-st.set_page_config(layout="wide")
-
 # Sidebar (mimicking side panel)
 with st.sidebar:
     st.title("Service Course Grader")
-    st.button("Instructions", on_click=lambda: st.session_state.show_instructions)
-    if 'show_instructions' in st.session_state:
+    if st.button("Instructions"):
+        st.session_state.show_instructions = not st.session_state.get("show_instructions", False)
+    if st.session_state.get("show_instructions", False):
         st.write("### Instructions")
         st.write("""
         - **Step 1:** Upload a PDF/DOCX file or manually fill in the details.
@@ -356,19 +357,21 @@ if uploaded_file and 'extracted' not in st.session_state:
     with st.spinner("Extracting content..."):
         with open("/tmp/uploaded_file", "wb") as f:
             f.write(uploaded_file.read())
+        assignment_type = "P1" if st.session_state.get("project_type", "--Project Type--") == "P1 (Group)" else "P2"
         if uploaded_file.name.endswith(".pdf"):
-            st.session_state.extracted = extract_text_from_pdf("/tmp/uploaded_file")
+            st.session_state.extracted = extract_text_from_pdf("/tmp/uploaded_file", assignment_type)
         else:
-            st.session_state.extracted = extract_text_from_docx("/tmp/uploaded_file")
+            st.session_state.extracted = extract_text_from_docx("/tmp/uploaded_file", assignment_type)
         os.remove("/tmp/uploaded_file")
 if st.button("Extract Content") and uploaded_file and 'extracted' not in st.session_state:
     with st.spinner("Extracting content..."):
         with open("/tmp/uploaded_file", "wb") as f:
             f.write(uploaded_file.read())
+        assignment_type = "P1" if st.session_state.get("project_type", "--Project Type--") == "P1 (Group)" else "P2"
         if uploaded_file.name.endswith(".pdf"):
-            st.session_state.extracted = extract_text_from_pdf("/tmp/uploaded_file")
+            st.session_state.extracted = extract_text_from_pdf("/tmp/uploaded_file", assignment_type)
         else:
-            st.session_state.extracted = extract_text_from_docx("/tmp/uploaded_file")
+            st.session_state.extracted = extract_text_from_docx("/tmp/uploaded_file", assignment_type)
         os.remove("/tmp/uploaded_file")
 
 # Form section
@@ -388,7 +391,7 @@ if project_type in ["P1 (Group)", "P2 (Individual)"]:
 if st.button("Submit"):
     if project_type == "--Project Type--":
         st.error("Please select a project type.")
-    elif not st.session_state.submission_dict:
+    elif not any(st.session_state.submission_dict.values()):
         st.error("Please provide at least one subcomponent submission.")
     else:
         project_type_short = "Group" if project_type == "P1 (Group)" else "Individual"
@@ -406,7 +409,7 @@ if st.button("Submit"):
         with st.spinner("Evaluating submission..."):
             for rubric in rubrics:
                 subcomponent = rubric["subcomponent"]
-                if subcomponent in st.session_state.submission_dict:
+                if subcomponent in st.session_state.submission_dict and st.session_state.submission_dict[subcomponent]:
                     submission = st.session_state.submission_dict[subcomponent]
                     evaluation = evaluate_submission(
                         subcomponent,
@@ -456,6 +459,12 @@ if st.button("Submit"):
 if 'show_results' in st.session_state and st.session_state.show_results:
     st.title("Grading Results")
     st.write(f"Below is the detailed evaluation of group {group_number if group_number else 'N/A'} submission.")
+    st.markdown("""
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { color: #007bff; }
+            pre { white-space: pre-wrap; background-color: #f9f9f9; padding: 10px; border: 1px solid #ddd; }
+        </style>
+    """, unsafe_allow_html=True)
     st.markdown(st.session_state.results, unsafe_allow_html=False)
-    # Placeholder for PDF download (disabled due to wkhtmltopdf limitation)
     st.write("Download PDF option is not available on this platform.")
