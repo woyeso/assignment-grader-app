@@ -30,11 +30,10 @@ def load_rubrics(project_type):
 # Load model and tokenizer
 @st.cache(allow_output_mutation=True)
 def load_model():
-    model_name = "distilgpt2"  # Lightweight model
+    model_name = "distilgpt2"
     hf_token = os.getenv("HF_TOKEN")
 
     try:
-        # Try loading with fast tokenizer first
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
             token=hf_token if hf_token else None,
@@ -42,14 +41,12 @@ def load_model():
         )
     except Exception as e:
         logger.error(f"Failed to load fast tokenizer: {e}. Falling back to slow tokenizer.")
-        # Fall back to slow tokenizer
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
             token=hf_token if hf_token else None,
             use_fast=False
         )
 
-    # Set padding token for distilgpt2 (which doesn't have one by default)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
         logger.debug(f"Set pad_token to eos_token: {tokenizer.pad_token}")
@@ -60,15 +57,13 @@ def load_model():
         device_map="auto",
         token=hf_token if hf_token else None
     )
-
-    # Ensure the model knows about the padding token
     model.config.pad_token_id = tokenizer.pad_token_id
 
     return model, tokenizer
 
 model, tokenizer = load_model()
 
-# Subcomponent mappings (same as original)
+# Subcomponent mappings
 P1_SUBCOMPONENTS = {
     '1.1': 'Information of the Service Recipients Found:',
     '1.2': 'Information Related to the Use of AI in Teaching and Learning:',
@@ -97,7 +92,7 @@ P2_SUBCOMPONENTS = {
     '5.2': 'How to Self-Evaluate Performance and Make Improvements:'
 }
 
-# Text extraction functions (unchanged)
+# Text extraction functions
 def extract_text_between_strings(text, start_keyword, end_keyword):
     try:
         extracted_text = ""
@@ -320,57 +315,90 @@ def evaluate_submission(subcomponent, project_type, rubric, submission, school_n
             temperature=0.7,
             top_p=0.9,
             do_sample=True,
-            pad_token_id=tokenizer.pad_token_id  # Explicitly set pad_token_id for generation
+            pad_token_id=tokenizer.pad_token_id
         )
     feedback = tokenizer.decode(outputs[0], skip_special_tokens=True)
     return feedback
 
 # Streamlit app
-st.title("Assignment Grader App")
+st.set_page_config(layout="wide")
 
-# File upload
-uploaded_file = st.file_uploader("Upload PDF/DOCX", type=["pdf", "docx"])
-project_type = st.selectbox("Project Type", ["Group (P1)", "Individual (P2)"])
-school_name = st.text_input("School Name (Optional)")
-group_number = st.text_input("Group Number (Optional)")
+# Sidebar (mimicking side panel)
+with st.sidebar:
+    st.title("Service Course Grader")
+    st.button("Instructions", on_click=lambda: st.session_state.show_instructions)
+    if 'show_instructions' in st.session_state:
+        st.write("### Instructions")
+        st.write("""
+        - **Step 1:** Upload a PDF/DOCX file or manually fill in the details.
+        - **Step 2:** If a document is uploaded, click 'Extract Content' to auto-populate the form.
+        - **Step 3:** Select the project type (P1 for group projects, P2 for individual projects).
+        - **Step 4:** Enter the school name and group number (optional).
+        - **Step 5:** Review the populated fields and click 'Submit' to evaluate your submission.
+        """)
+    st.write("### Navigation")
+    st.write("- Submission Form (Active)")
+    st.write("- Results (Disabled)")
+    st.write("- Download PDF (Disabled)")
+    st.write("### About")
+    st.write("""
+    This app is designed to grade service course project submissions by leveraging AI-powered evaluation. The model was trained on Service Learning Project (ISE2S02) submissions. 
+    Hence, it is tailored to grade submissions related to this course and provides detailed feedback on strengths, weaknesses, and areas for improvement to help students enhance their work.
+    """)
 
-# Manual text input as fallback
-manual_text = st.text_area("Or enter your submission text manually (optional)")
+# Main content
+st.title("Welcome to Service Learning Project (ISE2S02) Grader")
+st.write("Select a project type and upload a file to auto-populate the form, or fill it out manually.")
 
-if st.button("Evaluate"):
-    if uploaded_file or manual_text:
-        # Load rubrics
-        project_type_short = "Group" if project_type == "Group (P1)" else "Individual"
-        project = "P1" if project_type == "Group (P1)" else "P2"
+# File upload section
+uploaded_file = st.file_uploader("Upload PDF/DOCX File (Optional)", type=["pdf", "docx"])
+if uploaded_file and 'extracted' not in st.session_state:
+    with st.spinner("Extracting content..."):
+        with open("/tmp/uploaded_file", "wb") as f:
+            f.write(uploaded_file.read())
+        if uploaded_file.name.endswith(".pdf"):
+            st.session_state.extracted = extract_text_from_pdf("/tmp/uploaded_file")
+        else:
+            st.session_state.extracted = extract_text_from_docx("/tmp/uploaded_file")
+        os.remove("/tmp/uploaded_file")
+if st.button("Extract Content") and uploaded_file and 'extracted' not in st.session_state:
+    with st.spinner("Extracting content..."):
+        with open("/tmp/uploaded_file", "wb") as f:
+            f.write(uploaded_file.read())
+        if uploaded_file.name.endswith(".pdf"):
+            st.session_state.extracted = extract_text_from_pdf("/tmp/uploaded_file")
+        else:
+            st.session_state.extracted = extract_text_from_docx("/tmp/uploaded_file")
+        os.remove("/tmp/uploaded_file")
+
+# Form section
+project_type = st.selectbox("Select Project Type:", ["--Project Type--", "P1 (Group)", "P2 (Individual)"], index=0, key="project_type")
+school_name = st.text_input("School Name (Optional)", key="school_name")
+group_number = st.text_input("Group Number (Optional)", key="group_number")
+
+# Dynamic subcomponent fields
+if project_type in ["P1 (Group)", "P2 (Individual)"]:
+    subcomponents = P1_SUBCOMPONENTS if project_type == "P1 (Group)" else P2_SUBCOMPONENTS
+    if 'submission_dict' not in st.session_state:
+        st.session_state.submission_dict = {}
+    for code, title in subcomponents.items():
+        default_value = st.session_state.extracted[code]["content"] if 'extracted' in st.session_state and code in st.session_state.extracted else ""
+        st.session_state.submission_dict[code] = st.text_area(f"{title} ({code})", value=default_value, key=f"{code}_input")
+
+if st.button("Submit"):
+    if project_type == "--Project Type--":
+        st.error("Please select a project type.")
+    elif not st.session_state.submission_dict:
+        st.error("Please provide at least one subcomponent submission.")
+    else:
+        project_type_short = "Group" if project_type == "P1 (Group)" else "Individual"
+        project = "P1" if project_type == "P1 (Group)" else "P2"
         try:
             rubrics = load_rubrics(project_type_short)
         except Exception as e:
             st.error(f"Error loading rubrics: {str(e)}")
             st.stop()
 
-        # Extract text from file or use manual input
-        submission_dict = {}
-        if uploaded_file:
-            with open("/tmp/uploaded_file", "wb") as f:
-                f.write(uploaded_file.read())
-            
-            if uploaded_file.name.endswith(".pdf"):
-                results = extract_text_from_pdf("/tmp/uploaded_file", project)
-            else:
-                results = extract_text_from_docx("/tmp/uploaded_file", project)
-            os.remove("/tmp/uploaded_file")
-            
-            for subcomponent, data in results.items():
-                if data["content"] != "Not Found":
-                    submission_dict[subcomponent] = data["content"]
-        else:
-            submission_dict["1.1"] = manual_text  # Simplified for manual input; adjust as needed
-
-        if not submission_dict:
-            st.error("No text extracted from the file or provided manually.")
-            st.stop()
-
-        # Evaluate submissions
         evaluations = []
         total_score = 0
         total_weight = 0
@@ -378,42 +406,38 @@ if st.button("Evaluate"):
         with st.spinner("Evaluating submission..."):
             for rubric in rubrics:
                 subcomponent = rubric["subcomponent"]
-                if subcomponent not in submission_dict:
-                    continue
+                if subcomponent in st.session_state.submission_dict:
+                    submission = st.session_state.submission_dict[subcomponent]
+                    evaluation = evaluate_submission(
+                        subcomponent,
+                        project_type_short,
+                        rubric["criteria"],
+                        submission,
+                        school_name if school_name else "Not provided"
+                    )
 
-                submission = submission_dict[subcomponent]
-                evaluation = evaluate_submission(
-                    subcomponent,
-                    project_type_short,
-                    rubric["criteria"],
-                    submission,
-                    school_name if school_name else "Not provided"
-                )
+                    if school_name:
+                        evaluation = evaluation.replace("XYZ students", f"{school_name} students")
+                    else:
+                        evaluation = evaluation.replace("XYZ students", "students")
 
-                if school_name:
-                    evaluation = evaluation.replace("XYZ students", f"{school_name} students")
-                else:
-                    evaluation = evaluation.replace("XYZ students", "students")
+                    score_match = re.search(r"Overall Mark:\s*([\d.]+)(?:\s*/\s*10)?", evaluation, re.IGNORECASE)
+                    score = float(score_match.group(1)) if score_match else 0
 
-                score_match = re.search(r"Overall Mark:\s*([\d.]+)(?:\s*/\s*10)?", evaluation, re.IGNORECASE)
-                score = float(score_match.group(1)) if score_match else 0
+                    weight = rubric.get("weight", 1.0)
+                    total_score += score * weight
+                    total_weight += weight
 
-                weight = rubric.get("weight", 1.0)
-                total_score += score * weight
-                total_weight += weight
+                    evaluations.append({
+                        "subcomponent": subcomponent,
+                        "evaluation": evaluation,
+                        "score": score,
+                        "weight": weight
+                    })
 
-                evaluations.append({
-                    "subcomponent": subcomponent,
-                    "evaluation": evaluation,
-                    "score": score,
-                    "weight": weight
-                })
-
-        # Calculate final grade
         final_grade = (total_score / total_weight) * 10 if total_weight > 0 else 0
         final_grade = round(final_grade, 2)
 
-        # Display results
         group_display = f" {group_number}" if group_number else ""
         summary = f"**Summary of Evaluations for {project} Project (Group{group_display})**\n\n"
         separator = "********************************************************************\n"
@@ -426,7 +450,12 @@ if st.button("Evaluate"):
 
         summary += f"**Final Total Grade: {final_grade}%**"
 
-        st.subheader("Evaluation Results")
-        st.markdown(summary)
-    else:
-        st.error("Please upload a file or enter text manually.")
+        st.session_state.results = summary
+        st.session_state.show_results = True
+
+if 'show_results' in st.session_state and st.session_state.show_results:
+    st.title("Grading Results")
+    st.write(f"Below is the detailed evaluation of group {group_number if group_number else 'N/A'} submission.")
+    st.markdown(st.session_state.results, unsafe_allow_html=False)
+    # Placeholder for PDF download (disabled due to wkhtmltopdf limitation)
+    st.write("Download PDF option is not available on this platform.")
