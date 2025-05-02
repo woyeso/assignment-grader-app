@@ -30,7 +30,7 @@ def load_rubrics(project_type):
 # Load model and tokenizer
 @st.cache(allow_output_mutation=True)
 def load_model():
-    model_name = "unsloth/Llama-3.2-1B-Instruct"  # Use smaller 1B model
+    model_name = "distilgpt2"  # Switch to a lightweight, stable model
     hf_token = os.getenv("HF_TOKEN")
 
     try:
@@ -38,7 +38,7 @@ def load_model():
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
             token=hf_token if hf_token else None,
-            use_fast=True  # Explicitly enable fast tokenizer
+            use_fast=True
         )
     except Exception as e:
         logger.error(f"Failed to load fast tokenizer: {e}. Falling back to slow tokenizer.")
@@ -46,7 +46,7 @@ def load_model():
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
             token=hf_token if hf_token else None,
-            use_fast=False  # Force slow tokenizer
+            use_fast=False
         )
 
     model = AutoModelForCausalLM.from_pretrained(
