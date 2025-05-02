@@ -1,0 +1,52 @@
+[
+    {
+        "subcomponent": "1.1",
+        "criteria": "Clarity and Specificity: Are objectives concise, measurable, and clear?, Relevance to STEM: Do they align with STEM goals and address learning hurdles?, Feasibility: Are they achievable for XYZ students?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "1.2",
+        "criteria": "Variety and Appropriateness: Does content suit objectives and audience?, Support for Objectives: Does it help achieve the stated goals?, Engagement: Is it engaging for students?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "2.1",
+        "criteria": "Integration of AI/STEM: Does the design effectively use content to introduce AI and teach STEM elements?, Alignment with Project Goals: Does it address specific objectives (Proposal Part I, Section 2) and STEM facilitation (Section 3)?, Creativity and Innovation: Is the design novel and tailored to overcome learning hurdles?",
+        "weight": 0.20
+    },
+    {
+        "subcomponent": "2.2",
+        "criteria": "Detail and Clarity: Is the plan detailed with clear steps to create kit items?, Timeline and Milestones: Are realistic timelines and milestones included?, Practicality: Is the plan feasible given resources and constraints?",
+        "weight": 0.15
+    },
+    {
+        "subcomponent": "2.3",
+        "criteria": "Fun Factor: Does the explanation show how the kit makes learning enjoyable?, Student-Centric: Is it tailored to XYZ students’ interests and abilities?, Motivation: Does it foster curiosity or enthusiasm for STEM?",
+        "weight": 0.15
+    },
+    {
+        "subcomponent": "3.1",
+        "criteria": "Structure: Is the diagram clear, using a divide-and-conquer approach?, Task Definition: Are tasks well-defined with descriptions and assigned roles?, Collaboration: Does it reflect effective teamwork and responsibility distribution?",
+        "weight": 0.15
+    },
+    {
+        "subcomponent": "4.1",
+        "criteria": "Interest Arousal: Does the plan creatively spark XYZ students’ STEM curiosity?, Relevance: Is the introduction tied to the kit’s STEM focus?, Approachability: Is it accessible and engaging for the target age group?",
+        "weight": 0.10
+    },
+    {
+        "subcomponent": "4.2",
+        "criteria": "Hurdle Identification: Are specific learning hurdles (e.g., for Hong Chi students) clearly identified?, Solution Effectiveness: Are practical strategies provided to address these hurdles?, Empathy and Support: Does it show understanding and support for students’ needs?",
+        "weight": 0.10
+    },
+    {
+        "subcomponent": "5.1",
+        "criteria": "Proactivity: Are potential uncertainties (e.g., absences) anticipated?, Solutions: Are actionable responses provided?, Resilience: Does it enhance kit delivery under uncertainty?",
+        "weight": 0.03
+    },
+    {
+        "subcomponent": "5.2",
+        "criteria": "Reflection: Does it outline individual and team performance review?, Improvement: Are specific improvement steps proposed?",
+        "weight": 0.02
+    }
+]

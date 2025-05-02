@@ -1,0 +1,62 @@
+[
+    {
+        "subcomponent": "1.1",
+        "criteria": "Accuracy and Detail: Is the information about service recipients (e.g., age, needs) precise and comprehensive, supported by at least 2 credible references?, Relevance: Does the information directly relate to the needs or context of XYZ students for the project?, Source Quality: Are references listed and from reliable, verifiable sources (e.g., academic articles, official reports)?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "1.2",
+        "criteria": "Depth of Insight: Does it explain at least 2 specific ways AI enhances teaching/learning (e.g., personalization, automation)?, Application to Project: Is the information explicitly linked to the project’s AI focus?, Source Credibility: Are at least 2 references provided, and are they from reputable sources (e.g., journals, expert blogs)?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "1.3",
+        "criteria": "Clarity of Title: Is the title concise, descriptive, and reflective of AI/STEM focus (e.g., 'AI-Powered STEM Adventures')?, Topic Suitability: Are 2–3 specific AI/STEM topics listed and justified with at least 2 selection criteria (e.g., age-appropriateness, interest)?, Rationale Strength: Is the explanation for suitability logical and tied to XYZ students’ needs?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "1.4",
+        "criteria": "Specificity: Are the 1–3 objectives clear, measurable, and outcome-focused (e.g., 'Students will code an AI chatbot' vs. 'Learn AI')?, Alignment with AI/STEM: Do objectives directly support the AI/STEM topics identified in 1.3?, Feasibility: Are objectives realistic given the project scope and XYZ students’ abilities?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "2.1",
+        "criteria": "Relevance to Project: Do at least 2 games explicitly tie to the AI/STEM topics from 1.3 (e.g., 'AI Guess Who' for pattern recognition)?, Creativity: Are the games original or uniquely adapted, with clear rules and objectives (e.g., measurable outcomes like 'identify 5 AI traits')?, Engagement: Are the games interactive and appealing, likely to sustain XYZ students’ attention for 10+ minutes?",
+        "weight": 0.30
+    },
+    {
+        "subcomponent": "2.2",
+        "criteria": "Task Clarity: Are 3+ tasks per member specific and actionable (e.g., 'Design 10 AI cards' vs. 'Help with games')?, Balance: Do tasks show equitable distribution across all members (e.g., similar effort levels)?, Relevance to Games: Are tasks directly tied to preparing or delivering the ice-breaking games?",
+        "weight": 0.20
+    },
+    {
+        "subcomponent": "3.1",
+        "criteria": "Specificity: Are 2–3 STEM elements (e.g., coding, engineering) clearly identified?, Connection to AI: Do elements link to the AI focus (e.g., 'coding AI algorithms')?, Breadth: Do they cover multiple STEM areas (e.g., science + technology)?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "3.2",
+        "criteria": "Targeted Skills: Are 2–3 specific abilities (e.g., problem-solving, critical thinking) listed?, Relevance to STEM: Do abilities align with STEM learning goals?, Measurability: Are abilities observable or assessable (e.g., 'solve 5 puzzles' vs. 'get better')?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "3.3",
+        "criteria": "Identification: Are 2–3 specific hurdles (e.g., 'difficulty with abstract concepts') listed?, Relevance to STEM/AI: Do hurdles relate to the project’s STEM/AI focus?, Evidence: Are hurdles supported by observations or references from 1.1?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "3.4",
+        "criteria": "Strategy Clarity: Are 2+ specific methods described (e.g., 'use visuals for coding')?, Hurdle Address: Do methods directly tackle hurdles from 3.3?, STEM Integration: Are methods tied to teaching STEM elements from 3.1?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "4.1",
+        "criteria": "Completeness: Are 5+ materials/parts listed, covering all games from 2.1?, Specificity: Are items detailed (e.g., '50 index cards' vs. 'cards')?, Suitability: Are materials appropriate for the games and XYZ students (e.g., safe, accessible)?",
+        "weight": 0.05
+    },
+    {
+        "subcomponent": "4.2",
+        "criteria": "Relevance: Are 3+ tools listed, necessary for making the games’ materials?, Precision: Are tools specific (e.g., 'scissors' vs. 'cutting tool')?, Availability: Are tools practical and likely available to the team?",
+        "weight": 0.05
+    }
+]
