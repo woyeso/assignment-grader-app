@@ -28,7 +28,7 @@ def load_rubrics(project_type):
         raise ValueError(f"Error decoding JSON from {rubric_file}")
 
 # Load model and tokenizer
-@st.cache_resource
+@st.cache(allow_output_mutation=True)  # Replaced cache_resource with cache
 def load_model():
     model_name = "unsloth/Llama-3.2-1B-Instruct"  # Use smaller 1B model
     hf_token = os.getenv("HF_TOKEN")
